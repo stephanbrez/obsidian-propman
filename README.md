@@ -2,6 +2,14 @@
 
 Manage Obsidian properties without pesky GUIs
 
+- [Why?](#why)
+- [What?](#what)
+  - [Features](#features)
+- [How](#how)
+  - [Directories](#directories)
+- [Things That Don't Work Yet](#things-that-dont-work-yet)
+- [Coming Soon (or maybe in awhile)](#coming-soon-or-maybe-in-awhile)
+
 ## Why?
 
 It's really hard (sorta impossible) to bulk edit Dataview property fields in the body of Obsidian notes--markdown documents. You can move them up into the YAML frontmatter to make use of the Obsidian "file properties" functionality, but that creates a few more painful issues:
@@ -16,6 +24,7 @@ Obsidian PropMan is a python tool that enables you to make changes to multiple f
 ### Features
 
 - _Move all or only specific Dataview properties into front matter_: no more hunting around for properties and manually copy pasting...save time and energy for **creating, not maintaining** more notes.
+  This even works with properties that have multiple values (comma separated).
 - _Delete a YAML or Dataview property from all files_: get rid a property that's redundant or no longer needed to reduce clutter and keep Obsidian snappy.
 - _Reorder front matter properties_: place fields in the order of your choosing to create visual consistency for easier reading across all your notes.
 - _Preview edits_: see what changes will be made to your notes **before** saving them so that you don't accidentally delete things.
@@ -68,7 +77,12 @@ find /my/vault/notes -type f -name '*.md' -exec bash -c "python3 obsidian-propma
 
 This is a bit hacky but works until a directory flag is implemented.
 
+## Things That Don't Work Yet
+
+- Moving properties in the YAML front matter that contain an array of values.
+
 ## Coming Soon (or maybe in awhile)
 
 - Directory flag to operate on all markdown files in a given directory.
 - Rename Dataview properties
+- Moving properties from the YAML frontmatter to the body of the note.
