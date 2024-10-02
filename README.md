@@ -4,17 +4,17 @@ Manage Obsidian properties without pesky GUIs
 ## Why?
 It's really hard (sorta impossible) to bulk edit Dataview property fields in the body of Obsidian notes--markdown documents. You can move them up into the YAML frontmatter to make use of the Obsidian "file properties" functionality, but that creates a few more painful issues:
 - You have to manually edit *each file individually* to move (copy/paste) and reformat (convert to YAML) Dataview properties **one by one** into the frontmatter. 
-- Obsidian doesn't give you functionality to 
+- Obsidian doesn't give you functionality to remove or reorder a property for multiple files at once.
 
 ## What?
 Obsidian PropMan is a python tool that enables you to make changes to multiple files quickly and easily (if you have python setup) from the command line.
 
-### Features*
-- Move all or only specific dataview properties into frontmatter: no more hunting around for properties and manually copy pasting...save time and energy for **creating, not maintaining** more notes.
-- Delete a YAML or Dataview property from all files: get rid a property that's redundant or no longer needed to reduce clutter and keep Obsidian snappy.
-- Reorder frontmatter properties: place fields in the order of your choosing to create visual consistency for easier reading across all your notes.
-- Preview edits: see what changes will be made to your notes **before** saving them so that you don't accidentally delete things.
-- Verbose mode: detailed status messages to find out which properties are being modified so there are no surprises.
+### Features
+- *Move all or only specific dataview properties into frontmatter*: no more hunting around for properties and manually copy pasting...save time and energy for **creating, not maintaining** more notes.
+- *Delete a YAML or Dataview property from all files*: get rid a property that's redundant or no longer needed to reduce clutter and keep Obsidian snappy.
+- *Reorder frontmatter properties*: place fields in the order of your choosing to create visual consistency for easier reading across all your notes.
+- *Preview edits*: see what changes will be made to your notes **before** saving them so that you don't accidentally delete things.
+- *Verbose mode*: detailed status messages to find out which properties are being modified so there are no surprises.
 
 ## How
 Run the script `python3 obsidian-propman.py` with the following flags:
