@@ -35,7 +35,7 @@ import os
 
 # Pre-compile all regex patterns used in the script
 PATTERNS = {
-    'DV_PROP': re.compile(r"[\[(]([a-zA-Z0-9-_]+)::\s{1}.+?[\])]"),
+    'DV_PROP': re.compile(r'(?:[\[(].+?[\])]|(?:^|\s*[-]|\s*>)\s*[a-zA-Z0-9-_]+::\s.+)'),
     'MULTI_LINE': re.compile(r",[^\[]+\]\]"),
     'BLOCKREF': re.compile(r"\^[a-zA-Z0-9-]+"),
     'DOUBLE_BRACKETS': re.compile(r"\[\[.*?\]\]"),
@@ -182,13 +182,21 @@ def batch_process_props(lines, divider, move_props=None, remove_props=None, all_
     if all_inline:
         for index, line in enumerate(lines):
             if res := PATTERNS['DV_PROP'].search(line):
-              inner_content = res.group(0)[1:-1]
-              # Split at :: to separate property name and value
-              prop_name, value = inner_content.split(":: ", 1)
-              if verbose:
-                  print(f"Found inline property: {prop_name} on line {index}")
-              new_content = inline_to_yaml(inner_content)
-              changes.append(('move', index, new_content))
+                match = res.group(0)
+                if match.startswith('[') or match.startswith('('):
+                    # Handle bracketed property
+                    inner_content = match[1:-1]
+                else:
+                    # Handle line-start/after-character property
+                    # Remove leading characters if present
+                    inner_content = match.lstrip('- ').lstrip('> ')
+
+                # Split at :: to separate property name and value
+                prop_name, value = inner_content.split(":: ", 1)
+                if verbose:
+                    print(f"Found inline property: {prop_name} on line {index}")
+                new_content = inline_to_yaml(inner_content)
+                changes.append(('move', index, new_content))
 
     # Process specific properties to move
     if move_props:
