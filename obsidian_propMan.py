@@ -134,7 +134,13 @@ def find_linenum(lines, target_string, start=0, stop=0, verbose=False):
 
 
 def find_body_props(lines, divider, verbose=False):
-    # Search for all page body properties
+    """Search for and process all page body properties in given lines.
+
+    Args:
+        lines (list): List of text lines to search through
+        divider (int): Line number of YAML frontmatter divider
+        verbose (bool, optional): Whether to print verbose output. Defaults to False.
+    """
     dv_prop = ""
     for index, line in enumerate(lines):
         if res := re.search(r"[a-zA-Z0-9-_[(]+::\s{1}.+", line):
@@ -146,6 +152,17 @@ def find_body_props(lines, divider, verbose=False):
 
 
 def find_prop(lines, search_str, divider, verbose=False):
+    """Find a specific property in either YAML frontmatter or page body.
+
+    Args:
+        lines (list): List of text lines to search through
+        search_str (str): Property name to search for
+        divider (int): Line number of YAML frontmatter divider
+        verbose (bool, optional): Whether to print verbose output. Defaults to False.
+
+    Returns:
+        int: Line number where property was found, or 0 if not found
+    """
     index_of_source = 0
     # Check existing YAML if not empty
     if divider > 1:
@@ -161,6 +178,15 @@ def find_prop(lines, search_str, divider, verbose=False):
 
 
 def move_prop(lines, line_index, prop_name, divider, verbose=False):
+    """Move a property from its current location to the YAML frontmatter.
+
+    Args:
+        lines (list): List of text lines
+        line_index (int): Index of line containing property to move
+        prop_name (str): Name of property to move
+        divider (int): Line number of YAML frontmatter divider
+        verbose (bool, optional): Whether to print verbose output. Defaults to False.
+    """
     if verbose:
         print(f"Moving: {lines[line_index]}")
     line = lines.pop(line_index)
@@ -170,8 +196,16 @@ def move_prop(lines, line_index, prop_name, divider, verbose=False):
     lines.insert(divider, line)
 
 
-# TODO combine the move prop fns
 def move_inline_prop(lines, line_index, prop_name, divider, verbose=False):
+    """Move an inline property from its current location to the YAML frontmatter.
+
+    Args:
+        lines (list): List of text lines
+        line_index (int): Index of line containing property to move
+        prop_name (str): Name of property to move
+        divider (int): Line number of YAML frontmatter divider
+        verbose (bool, optional): Whether to print verbose output. Defaults to False.
+    """
     if verbose:
         print(f"Moving: {lines[line_index]}")
     line = lines.pop(line_index)
@@ -180,12 +214,29 @@ def move_inline_prop(lines, line_index, prop_name, divider, verbose=False):
 
 
 def remove_prop(lines, line_index, verbose=False):
+    """Remove a property from the file.
+
+    Args:
+        lines (list): List of text lines
+        line_index (int): Index of line containing property to remove
+        verbose (bool, optional): Whether to print verbose output. Defaults to False.
+    """
     if verbose:
         print(f"Removing: {lines[line_index]}")
     lines.pop(line_index)
 
 
 def clean_prop(line, prop_name, inline=False):
+    """Cleans and formats a property line for YAML frontmatter.
+
+    Args:
+        line: String containing the full property line to clean
+        prop_name: String name of the property being cleaned
+        inline: Boolean indicating if this is an inline property
+
+    Returns:
+        String containing the cleaned and reformatted property line
+    """
     # Remove everything preceding the property name
     start = line.find(prop_name)
     line = line[start:]
@@ -209,6 +260,15 @@ def clean_prop(line, prop_name, inline=False):
 
 
 def clean_inline_prop(line, prop_name):
+    """Cleans inline property syntax from a property line.
+
+    Args:
+        line: String containing the inline property line to clean
+        prop_name: String name of the property being cleaned
+
+    Returns:
+        String with inline property syntax removed
+    """
     search_char = ""
     if prop_name[0] == "[":
         search_char = "]"
@@ -222,6 +282,15 @@ def clean_inline_prop(line, prop_name):
 
 
 def format_prop(prop_name, inline=False):
+    """Formats a property name with appropriate colon syntax.
+
+    Args:
+        prop_name: String name of property to format
+        inline: Boolean indicating if this is an inline property
+
+    Returns:
+        String containing formatted property name
+    """
     prop_name = prop_name + ":"
     if inline:
         prop_name = prop_name + ":"
@@ -245,6 +314,20 @@ def check_for_multi_line(line):
 
 
 def inline_to_multi_line(line):
+    """Converts a comma-separated single line property to multi-line YAML format.
+
+    Args:
+        line: A string containing a comma-separated property value.
+            Expected format: "property_name: value1, value2, value3"
+
+    Returns:
+        A string containing the property in multi-line YAML list format:
+            property_name:
+              - value1
+              - value2
+              - value3
+
+    """
     line = line.split(":", 1)
     output = line[0].strip() + ":"
     elements = line[1].split(",")
@@ -256,6 +339,26 @@ def inline_to_multi_line(line):
 
 
 def main(args):
+    """Main function to process Obsidian markdown files and manipulate their properties.
+
+    Processes command line arguments to move or remove properties in markdown files.
+    Can operate on a single file or directory of files. Properties can be moved from
+    inline/body to YAML frontmatter or removed entirely.
+
+    Args:
+        args: Command line arguments parsed by argparse containing:
+            file: Path to single markdown file to process
+            directory: Path to directory of markdown files to process
+            all: Boolean to move all inline properties
+            verbose: Boolean to enable verbose output
+            preview: Boolean to preview changes without writing
+            write: Boolean to write changes to files
+            move: List of property names to move to frontmatter
+            remove: List of property names to remove
+
+    Returns:
+        None
+    """
     # Access the values of the command-line arguments
     file_name = args.file
     directory = args.directory
