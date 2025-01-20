@@ -187,7 +187,7 @@ def batch_process_props(lines, divider, move_props=None, remove_props=None, all_
               prop_name, value = inner_content.split(":: ", 1)
               if verbose:
                   print(f"Found inline property: {prop_name} on line {index}")
-              new_content = clean_prop(line, prop_name, True)
+              new_content = inline_to_yaml(line)
               changes.append(('move', index, new_content))
 
     # Process specific properties to move
@@ -218,8 +218,9 @@ def batch_process_props(lines, divider, move_props=None, remove_props=None, all_
             lines.insert(divider, content)
     return lines
 
-def clean_prop(line, prop_name, inline=False):
-    """Cleans and formats a property line for YAML frontmatter.
+def clean_prop(line, prop_name):
+    """Cleans and formats a text line  for YAML frontmatter.
+    Sets everything from "::" to the end of the line as the property value.
     Removes blockrefs and quotes double brackets.
 
     Args:
@@ -240,9 +241,12 @@ def clean_prop(line, prop_name, inline=False):
     line = line[start:end].strip()
 
     # Single string operation for formatting
-    line = f"{line[0].lower()}{line[1:].replace('::', ':').replace('[[', '"[[').replace(']]', ']]"')}\n"
+    line = inline_to_yaml(line)
 
     return line
+
+def inline_to_yaml(line):
+  return f"{line[0].lower()}{line[1:].replace('::', ':').replace('[[', '"[[').replace(']]', ']]"')}\n"
 
 def format_prop(prop_name, inline=False):
     """Formats a property name with appropriate colon syntax.
