@@ -43,13 +43,10 @@ def get_files_from_directory(directory_path):
     Returns:
         list: list of full file paths for all markdown files in the directory
     """
-    files = []
     try:
-        for file in os.listdir(directory_path):
-            if file.endswith('.md'):  # Only process markdown files
-                full_path = os.path.join(directory_path, file)
-                files.append(full_path)
-        return files
+        return [os.path.join(directory_path, f)
+                for f in os.listdir(directory_path)
+                if f.endswith('.md')]
     except Exception as e:
         print(f"Error reading directory: {e}")
         return []
@@ -130,25 +127,6 @@ def find_linenum(lines, target_string, start=0, stop=0, verbose=False):
         if verbose:
             print(f"The string '{target_string}' was not found in the file.")
         return None
-
-
-def find_body_props(lines, divider, verbose=False):
-    """Search for and process all page body properties in given lines.
-
-    Args:
-        lines (list): List of text lines to search through
-        divider (int): Line number of YAML frontmatter divider
-        verbose (bool, optional): Whether to print verbose output. Defaults to False.
-    """
-    dv_prop = ""
-    for index, line in enumerate(lines):
-        if res := re.search(r"[a-zA-Z0-9-_[(]+::\s{1}.+", line):
-            dv_prop = res.group().split(":: ")
-            dv_prop = dv_prop[0]
-            if verbose:
-                print(f"Found body property: {dv_prop} on line {line}")
-            move_inline_prop(lines, index, dv_prop, divider, verbose)
-
 
 def find_prop(lines, search_str, divider, verbose=False):
     """Find a specific property in either YAML frontmatter or page body.
