@@ -206,11 +206,8 @@ def batch_process_props(lines, divider, move_props=None, remove_props=None, all_
     """
     # Create a working copy of lines
     modified_lines = lines.copy()
-
     # Initial line count
-    if verbose:
-        initial_count = len(modified_lines)
-        print(f"\nInitial line count: {initial_count}")
+    initial_count = len(modified_lines)
 
     # Track line changes
     lines_removed = 0
