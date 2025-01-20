@@ -231,7 +231,7 @@ def clean_prop(line, prop_name, inline=False):
     """
     # Find property name and end positions
     start = line.find(prop_name)
-    end = line.find("^")
+    end = max(line.rfind("^"), line.rfind(")"), line.rfind("]"))
     if end < 0:
         end = len(line)
 
