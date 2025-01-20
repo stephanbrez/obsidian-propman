@@ -33,6 +33,16 @@ import argparse
 import re
 import os
 
+# Pre-compile all regex patterns used in the script
+PATTERNS = {
+    'BODY_PROP': re.compile(r"[a-zA-Z0-9-_[(]+::\s{1}.+"),
+    'MULTI_LINE': re.compile(r",[^\[]+\]\]"),
+    'BLOCKREF': re.compile(r"\^[a-zA-Z0-9-]+"),
+    'DOUBLE_BRACKETS': re.compile(r"\[\[.*?\]\]")
+    'COMMA_SPLIT': re.compile(r',\s*'),  # For splitting comma-separated values
+    'PROPERTY_VALUE': re.compile(r':\s*(.+)'),  # For extracting property values
+    'YAML_PROPERTY': re.compile(r'^([^:]+):\s*(.*)$'),  # For parsing YAML properties
+}
 
 def get_files_from_directory(directory_path):
     """Get all markdown files from the specified directory
@@ -171,7 +181,7 @@ def batch_process_props(lines, divider, move_props=None, remove_props=None, all_
     # Process all inline properties if requested
     if all_inline:
         for index, line in enumerate(lines):
-            if res := re.search(r"[a-zA-Z0-9-_[(]+::\s{1}.+", line):
+            if res := PATTERNS['BODY_PROP'].search(line):
                 prop = res.group().split(":: ")[0]
                 if verbose:
                     print(f"Found inline property: {prop} on line {index}")
@@ -208,6 +218,8 @@ def batch_process_props(lines, divider, move_props=None, remove_props=None, all_
 
 def clean_prop(line, prop_name, inline=False):
     """Cleans and formats a property line for YAML frontmatter.
+    Removes blockrefs and dataview inline property syntax of [] or ().
+    Quotes double brackets.
 
     Args:
         line: String containing the full property line to clean
@@ -237,7 +249,7 @@ def clean_prop(line, prop_name, inline=False):
 
 
 def clean_inline_prop(line, prop_name):
-    """Cleans inline property syntax from a property line.
+    """Cleans inline property syntax [] or () from a property line.
 
     Args:
         line: String containing the inline property line to clean
@@ -260,6 +272,7 @@ def clean_inline_prop(line, prop_name):
 
 def format_prop(prop_name, inline=False):
     """Formats a property name with appropriate colon syntax.
+    Single colon for YAML frontmatter, double colon for inline properties.
 
     Args:
         prop_name: String name of property to format
@@ -285,7 +298,7 @@ def check_for_multi_line(line):
     """
     if "," not in line:
         return False
-    if re.search(r",[^\[]+\]\]", line):  # ,\s+\[\[
+    if PATTERNS['MULTI_LINE'].search(line):  # ,\s+\[\[
         return False
     return True
 
@@ -305,14 +318,19 @@ def inline_to_multi_line(line):
               - value3
 
     """
-    line = line.split(":", 1)
-    output = line[0].strip() + ":"
-    elements = line[1].split(",")
-    for element in elements:
-        if keyword := element.strip():
-            output += "\n  - " + keyword
-    output = output + "\n"
-    return output
+    # Use regex to split property name and value
+    if match := PATTERNS['YAML_PROPERTY'].match(line):
+        prop_name, values = match.groups()
+        output = prop_name.strip() + ":"
+
+        # Split values using regex
+        elements = values.split(",")
+
+        for element in elements:
+            if keyword := element.strip():
+                output += f"\n  - {keyword}"
+
+        return output + "\n"
 
 
 def main(args):
