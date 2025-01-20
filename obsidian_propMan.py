@@ -170,12 +170,16 @@ def find_prop(lines, search_str, divider, verbose=False):
         int: Line number where property was found, or 0 if not found
     """
     # Check YAML and body in one pass
-    yaml_prop = fix_colon(search_str)
-    body_prop = fix_colon(search_str, True)
+    yaml_prop = fix_colon(search_str).lower()
+    body_prop = fix_colon(search_str, True).lower()
+
+    if verbose:
+        print(f"Searching for {search_str} in YAML and body")
 
     for i, line in enumerate(lines):
-        if (i < divider and yaml_prop in line) or \
-           (i >= divider and body_prop in line):
+        if (i < divider and yaml_prop in line.lower()) or (i >= divider and body_prop in line.lower()):
+            if verbose:
+                print(f"Found {search_str} on line {i}: {line}")
             return i
     return 0
 
@@ -216,7 +220,7 @@ def batch_process_props(lines, divider, move_props=None, remove_props=None, all_
     # Phase 1: Remove specified properties
     if remove_props:
         if verbose:
-            print("\nPhase 1: Removing properties")
+            print("\nRemoving properties")
         for prop in remove_props:
             if line_num := find_prop(modified_lines, prop, divider, verbose):
                 if verbose:
@@ -227,7 +231,7 @@ def batch_process_props(lines, divider, move_props=None, remove_props=None, all_
     # Phase 2: Move inline properties in document order
     if all_inline:
         if verbose:
-            print("\nPhase 2: Moving inline properties")
+            print("\nMoving inline properties")
         indices_to_remove = []
         yaml_insertions = []
 
@@ -267,14 +271,16 @@ def batch_process_props(lines, divider, move_props=None, remove_props=None, all_
         # Add collected properties to YAML in original order
         for content in reversed(yaml_insertions):
             modified_lines.insert(divider, content)
+            divider += 1 # Increment divider after insertion
 
     # Phase 3: Move specified properties in user-defined order
     if move_props:
         if verbose:
-            print("\nPhase 3: Moving specified properties")
+            print("\nMoving specified properties")
         for prop in move_props:
             # Find and remove the property from its current location
             if line_num := find_prop(modified_lines, prop, divider, verbose):
+                print(f"Marking for clean: {modified_lines[line_num]}")
                 content = clean_prop(modified_lines[line_num], prop)
                 if check_for_multi_line(content):
                     content = inline_to_multi_line(content)
@@ -282,6 +288,9 @@ def batch_process_props(lines, divider, move_props=None, remove_props=None, all_
                     print(f"Moving to YAML: {content}")
                 modified_lines.pop(line_num)
                 modified_lines.insert(divider, content)
+                if line_num > divider:
+                    print(f"Moved property {prop} from line {line_num} to YAML frontmatter")
+                    divider += 1 # Increment divider after insertion
 
     # Final line count and validation
     if verbose:
@@ -314,17 +323,24 @@ def clean_prop(line, prop_name=None):
     Returns:
         String containing the cleaned and reformatted property line
     """
+    match_line = line.lower()   
     # Find property name and end positions
     if prop_name:
-        start = line.find(prop_name)
+        prop_lower = prop_name.lower()
+        start = match_line.find(prop_lower)
+        if start == -1:
+            print(f"Warning: Could not find '{prop_name}' in line: {line}")
+            return line
     else:
         start = 0
-    end = line.rfind("^")
+        
+    end = match_line.rfind("^")
     if end < 0:
         end = len(line)
 
     # Extract and clean the property value portion
     line = line[start:end].strip()
+    print(f"Cleaning from {start} to {end}: {line}")
 
     # Single string operation for formatting
     line = inline_to_yaml(line)
