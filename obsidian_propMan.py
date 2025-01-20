@@ -185,6 +185,11 @@ def batch_process_props(lines, divider, move_props=None, remove_props=None, all_
 
     Returns:
         list: Modified lines with all changes applied
+
+    Notes:
+        This function tracks the line count before and after processing to ensure
+        that the final line count matches the expected count. If there is a mismatch,
+        the function will print a warning and export the modified state to a debug file.
     """
     # Create a working copy of lines
     modified_lines = lines.copy()
@@ -279,9 +284,9 @@ def batch_process_props(lines, divider, move_props=None, remove_props=None, all_
         print(f"Expected final count: {expected_count}")
         print(f"Actual final count: {final_count}")
         if expected_count != final_count:
-              print(f"WARNING: Line count mismatch! Expected {expected_count} but got {final_count}")
-              debug_file = export_debug_state(modified_lines, "mismatch")
-              print(f"\nDebug state exported to: {debug_file}")
+            print(f"WARNING: Line count mismatch! Expected {expected_count} but got {final_count}")
+            debug_file = export_debug_state(modified_lines, "mismatch")
+            print(f"\nDebug state exported to: {debug_file}")
 
     return modified_lines
 
@@ -301,9 +306,9 @@ def clean_prop(line, prop_name=None):
     """
     # Find property name and end positions
     if prop_name:
-      start = line.find(prop_name)
+        start = line.find(prop_name)
     else:
-      start = 0
+        start = 0
     end = line.rfind("^")
     if end < 0:
         end = len(line)
