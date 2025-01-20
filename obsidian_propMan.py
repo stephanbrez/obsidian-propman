@@ -38,7 +38,7 @@ PATTERNS = {
     'DV_PROP': re.compile(r"[\[(]([a-zA-Z0-9-_]+)::\s{1}.+?[\])]"),
     'MULTI_LINE': re.compile(r",[^\[]+\]\]"),
     'BLOCKREF': re.compile(r"\^[a-zA-Z0-9-]+"),
-    'DOUBLE_BRACKETS': re.compile(r"\[\[.*?\]\]")
+    'DOUBLE_BRACKETS': re.compile(r"\[\[.*?\]\]"),
     'COMMA_SPLIT': re.compile(r',\s*'),  # For splitting comma-separated values
     'PROPERTY_VALUE': re.compile(r':\s*(.+)'),  # For extracting property values
     'YAML_PROPERTY': re.compile(r'^([^:]+):\s*(.*)$'),  # For parsing YAML properties
