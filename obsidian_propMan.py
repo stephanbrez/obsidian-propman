@@ -62,7 +62,7 @@ def read_file(file_path):
         file_path (string): full path to the file including file name and extension
 
     Returns:
-        list with each line (separated by \n) as an element
+        list: list with each line (separated by \n) as an element
     """
     try:
         # Open the file in read mode
@@ -162,18 +162,15 @@ def find_prop(lines, search_str, divider, verbose=False):
     Returns:
         int: Line number where property was found, or 0 if not found
     """
-    index_of_source = 0
-    # Check existing YAML if not empty
-    if divider > 1:
-        index_of_source = find_linenum(
-            lines, format_prop(search_str), 1, divider, verbose
-        )
-    # Search page body if not in YAML
-    if not index_of_source:
-        search_str = format_prop(search_str, True)
-        index_of_source = find_linenum(lines, search_str, divider, 0, verbose)
+    # Check YAML and body in one pass
+    yaml_prop = format_prop(search_str)
+    body_prop = format_prop(search_str, True)
 
-    return index_of_source
+    for i, line in enumerate(lines):
+        if (i < divider and yaml_prop in line) or \
+           (i >= divider and body_prop in line):
+            return i
+    return 0
 
 
 def move_prop(lines, line_index, prop_name, divider, verbose=False):
