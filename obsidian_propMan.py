@@ -228,6 +228,7 @@ def batch_process_props(lines, divider, move_props=None, remove_props=None, all_
                     new_line = line.replace(match, '').strip()
                     if new_line:
                         modified_lines[index] = new_line + '\n'
+                        multi_line_expansions += 1
                     else:
                         indices_to_remove.append(index)
                 else:
@@ -239,8 +240,6 @@ def batch_process_props(lines, divider, move_props=None, remove_props=None, all_
                 # Process the property content
                 if check_for_multi_line(content):
                     content = inline_to_multi_line(content)
-                    # Count additional lines created by multi-line conversion
-                    multi_line_expansions += content.count('\n') - 1
                 yaml_insertions.append(content)
 
                 if verbose:
@@ -249,7 +248,6 @@ def batch_process_props(lines, divider, move_props=None, remove_props=None, all_
         # Remove empty lines in reverse order
         for index in sorted(indices_to_remove, reverse=True):
             modified_lines.pop(index)
-            lines_removed += 1
 
         # Add collected properties to YAML in original order
         for content in reversed(yaml_insertions):
@@ -265,8 +263,6 @@ def batch_process_props(lines, divider, move_props=None, remove_props=None, all_
                 content = clean_prop(modified_lines[line_num], prop)
                 if check_for_multi_line(content):
                     content = inline_to_multi_line(content)
-                    # Count additional lines created by multi-line conversion
-                    multi_line_expansions += content.count('\n') - 1
                 if verbose:
                     print(f"Moving to YAML: {content}")
                 modified_lines.pop(line_num)
@@ -279,7 +275,7 @@ def batch_process_props(lines, divider, move_props=None, remove_props=None, all_
         print(f"\nLine count summary:")
         print(f"Initial lines: {initial_count}")
         print(f"Lines removed: {lines_removed}")
-        print(f"Additional lines from multi-line conversions: {multi_line_expansions}")
+        print(f"Additional lines from inline conversions: {multi_line_expansions}")
         print(f"Expected final count: {expected_count}")
         print(f"Actual final count: {final_count}")
         if expected_count != final_count:
