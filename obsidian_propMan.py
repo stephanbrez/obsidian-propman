@@ -236,25 +236,22 @@ def clean_prop(line, prop_name, inline=False):
     Returns:
         String containing the cleaned and reformatted property line
     """
-    # Remove everything preceding the property name
+    # Find property name and end positions
     start = line.find(prop_name)
-    line = line[start:]
-    # Strip whitespace
-    line = line.strip()
+    end = line.find("^")
+    if end < 0:
+        end = len(line)
+
+    # Extract and clean the property value portion
+    line = line[start:end].strip()
+
     # Handle inline props
     if inline:
         line = clean_inline_prop(line, prop_name)
-    # Reformat attribute name
-    line = line.replace("::", ":")
-    line = line[0].lower() + line[1:]
-    # Remove blockref at end
-    found = line.find("^")
-    if found > 0:
-        line = line[:found]
-    # Quote double brackets
-    line = line.replace("[[", '"[[')
-    line = line.replace("]]", ']]"')
-    line = line + "\n"
+
+    # Single string operation for formatting
+    line = f"{line[0].lower()}{line[1:].replace('::', ':').replace('[[', '"[[').replace(']]', ']]"')}\n"
+
     return line
 
 
