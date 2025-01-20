@@ -104,9 +104,21 @@ def test_write(lines):
     """
     print(lines)
 
-def export_debug_state(lines, filename_suffix):
-    """Export current state to a debug file"""
-    debug_filename = f"debug_state_{filename_suffix}.txt"
+def export_debug_state(lines, filename_suffix, markdown_file=None):
+    """Export current state to a debug file
+    
+    Args:
+        lines: List of lines to write to debug file
+        filename_suffix: Suffix to append to debug filename
+        markdown_file: Optional name of markdown file being processed
+    """
+    base_name = "debug_state"
+    if markdown_file:
+        # Extract just the filename without path and extension
+        md_name = os.path.splitext(os.path.basename(markdown_file))[0]
+        base_name = f"debug_state_{md_name}"
+    
+    debug_filename = f"{base_name}_{filename_suffix}.txt"
     with open(debug_filename, "w") as f:
         for i, line in enumerate(lines):
             f.write(f"{i}: {line}\n")
@@ -167,7 +179,7 @@ def find_prop(lines, search_str, divider, verbose=False):
             return i
     return 0
 
-def batch_process_props(lines, divider, move_props=None, remove_props=None, all_inline=False, verbose=False):
+def batch_process_props(lines, divider, move_props=None, remove_props=None, all_inline=False, verbose=False, markdown_file=None):
     """Process properties in distinct phases to maintain correct ordering.
 
     Processing order:
@@ -182,6 +194,7 @@ def batch_process_props(lines, divider, move_props=None, remove_props=None, all_
         remove_props (list): Properties to remove
         all_inline (bool): Whether to move all inline properties
         verbose (bool): Enable verbose output
+        markdown_file (str): Optional path to markdown file being processed
 
     Returns:
         list: Modified lines with all changes applied
@@ -285,7 +298,7 @@ def batch_process_props(lines, divider, move_props=None, remove_props=None, all_
         print(f"Actual final count: {final_count}")
         if expected_count != final_count:
             print(f"WARNING: Line count mismatch! Expected {expected_count} but got {final_count}")
-            debug_file = export_debug_state(modified_lines, "mismatch")
+            debug_file = export_debug_state(modified_lines, "mismatch", markdown_file)
             print(f"\nDebug state exported to: {debug_file}")
 
     return modified_lines
@@ -450,7 +463,8 @@ def main(args):
             move_props=args.move,
             remove_props=args.remove,
             all_inline=args.all,
-            verbose=verbose_mode
+            verbose=verbose_mode,
+            markdown_file=file_path
         )
 
         # Write out changes
