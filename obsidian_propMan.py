@@ -216,7 +216,7 @@ def batch_process_props(lines, divider, move_props=None, remove_props=None, all_
                 print(f"Moving line {line_num} to YAML frontmatter")
             lines.pop(line_num)
             lines.insert(divider, content)
-
+    return lines
 
 def clean_prop(line, prop_name, inline=False):
     """Cleans and formats a property line for YAML frontmatter.
