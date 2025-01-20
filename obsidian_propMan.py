@@ -280,7 +280,6 @@ def batch_process_props(lines, divider, move_props=None, remove_props=None, all_
         for prop in move_props:
             # Find and remove the property from its current location
             if line_num := find_prop(modified_lines, prop, divider, verbose):
-                print(f"Marking for clean: {modified_lines[line_num]}")
                 content = clean_prop(modified_lines[line_num], prop)
                 if check_for_multi_line(content):
                     content = inline_to_multi_line(content)
@@ -340,7 +339,6 @@ def clean_prop(line, prop_name=None):
 
     # Extract and clean the property value portion
     line = line[start:end].strip()
-    print(f"Cleaning from {start} to {end}: {line}")
 
     # Single string operation for formatting
     line = inline_to_yaml(line)
