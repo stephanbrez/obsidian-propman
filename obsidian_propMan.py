@@ -35,7 +35,7 @@ import os
 
 # Pre-compile all regex patterns used in the script
 PATTERNS = {
-    'BODY_PROP': re.compile(r"[a-zA-Z0-9-_[(]+::\s{1}.+"),
+    'DV_PROP': re.compile(r"[\[(]([a-zA-Z0-9-_]+)::\s{1}.+?[\])]"),
     'MULTI_LINE': re.compile(r",[^\[]+\]\]"),
     'BLOCKREF': re.compile(r"\^[a-zA-Z0-9-]+"),
     'DOUBLE_BRACKETS': re.compile(r"\[\[.*?\]\]")
@@ -181,12 +181,14 @@ def batch_process_props(lines, divider, move_props=None, remove_props=None, all_
     # Process all inline properties if requested
     if all_inline:
         for index, line in enumerate(lines):
-            if res := PATTERNS['BODY_PROP'].search(line):
-                prop = res.group().split(":: ")[0]
-                if verbose:
-                    print(f"Found inline property: {prop} on line {index}")
-                new_content = clean_prop(line, prop, True)
-                changes.append(('move', index, new_content))
+            if res := PATTERNS['DV_PROP'].search(line):
+              inner_content = res.group(0)[1:-1]
+              # Split at :: to separate property name and value
+              prop_name, value = inner_content.split(":: ", 1)
+              if verbose:
+                  print(f"Found inline property: {prop_name} on line {index}")
+              new_content = clean_prop(line, prop_name, True)
+              changes.append(('move', index, new_content))
 
     # Process specific properties to move
     if move_props:
@@ -218,8 +220,7 @@ def batch_process_props(lines, divider, move_props=None, remove_props=None, all_
 
 def clean_prop(line, prop_name, inline=False):
     """Cleans and formats a property line for YAML frontmatter.
-    Removes blockrefs and dataview inline property syntax of [] or ().
-    Quotes double brackets.
+    Removes blockrefs and quotes double brackets.
 
     Args:
         line: String containing the full property line to clean
@@ -231,44 +232,17 @@ def clean_prop(line, prop_name, inline=False):
     """
     # Find property name and end positions
     start = line.find(prop_name)
-    end = max(line.rfind("^"), line.rfind(")"), line.rfind("]"))
+    end = line.rfind("^")
     if end < 0:
         end = len(line)
 
     # Extract and clean the property value portion
     line = line[start:end].strip()
 
-    # Handle inline props
-    if inline:
-        line = clean_inline_prop(line, prop_name)
-
     # Single string operation for formatting
     line = f"{line[0].lower()}{line[1:].replace('::', ':').replace('[[', '"[[').replace(']]', ']]"')}\n"
 
     return line
-
-
-def clean_inline_prop(line, prop_name):
-    """Cleans inline property syntax [] or () from a property line.
-
-    Args:
-        line: String containing the inline property line to clean
-        prop_name: String name of the property being cleaned
-
-    Returns:
-        String with inline property syntax removed
-    """
-    search_char = ""
-    if prop_name[0] == "[":
-        search_char = "]"
-    if prop_name[0] == "(":
-        search_char = ")"
-    if search_char:
-        end_char = line.rfind(search_char)
-        if end_char != -1:
-            line = line[1 : end_char - 1]
-    return line
-
 
 def format_prop(prop_name, inline=False):
     """Formats a property name with appropriate colon syntax.
