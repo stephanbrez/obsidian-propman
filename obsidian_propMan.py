@@ -1,5 +1,58 @@
+"""A simple script to manipulate properties in Obsidian notes.
+
+This script allows you to move inline/body properties into the YAML frontmatter
+or delete properties from a note. It can operate on a single file or an entire directory.
+
+Usage example:
+    Single file:
+        python obsidian_propMan.py -f path/to/file.md [options]
+    Directory:
+        python obsidian_propMan.py -d path/to/directory [options]
+
+Options:
+    -f, --file       Specify input file path
+    -d, --directory  Specify directory containing markdown files to process
+    -a, --all        Move all inline properties to YAML frontmatter
+    -mv [PROPS]      Move specific properties to YAML frontmatter
+    -rm [PROPS]      Remove specific properties
+    -t, --test      Preview changes without writing to file
+    -w, --write     Write changes to file
+    -v, --verbose   Enable verbose output
+
+Examples:
+    # Move all inline properties in a file:
+    python obsidian_propMan.py -f note.md -a -w
+
+    # Move specific properties from all files in a directory:
+    python obsidian_propMan.py -d ./notes -mv status tags -w
+
+    # Remove properties from a file:
+    python obsidian_propMan.py -f note.md -rm oldtag -w
+"""
 import argparse
 import re
+import os
+
+
+def get_files_from_directory(directory_path):
+    """Get all markdown files from the specified directory
+
+    Args:
+        directory_path (string): path to the directory to process
+
+    Returns:
+        list: list of full file paths for all markdown files in the directory
+    """
+    files = []
+    try:
+        for file in os.listdir(directory_path):
+            if file.endswith('.md'):  # Only process markdown files
+                full_path = os.path.join(directory_path, file)
+                files.append(full_path)
+        return files
+    except Exception as e:
+        print(f"Error reading directory: {e}")
+        return []
 
 
 def read_file(file_path):
@@ -47,7 +100,18 @@ def test_write(lines):
 
 
 def find_linenum(lines, target_string, start=0, stop=0, verbose=False):
-    # Find the line containing the target string
+    """Find the line number containing a target string within specified line range.
+
+    Args:
+        lines (list): List of strings to search through
+        target_string (str): String to search for
+        start (int, optional): Line number to start search from. Defaults to 0.
+        stop (int, optional): Line number to end search at. Defaults to 0 (end of file).
+        verbose (bool, optional): Whether to print verbose output. Defaults to False.
+
+    Returns:
+        int or None: Line number where target was found (0-based), or None if not found
+    """
     index_of_target = -1
     if not stop:
         stop = len(lines)
@@ -194,6 +258,7 @@ def inline_to_multi_line(line):
 def main(args):
     # Access the values of the command-line arguments
     file_name = args.file
+    directory = args.directory
     all_inline = args.all
     verbose_mode = args.verbose
     if args.test:
@@ -201,42 +266,55 @@ def main(args):
     move_props = args.move
     remove_props = args.remove
 
-    file_lines = []
-    file_lines = read_file(file_name)
-    # Abort if file not found
-    if not file_lines:
-        exit()
+    # Get list of files to process
+    files_to_process = []
+    if file_name:
+        files_to_process.append(file_name)
+    elif directory:
+        files_to_process = get_files_from_directory(directory)
+        if not files_to_process:
+            print(f"No markdown files found in directory: {directory}")
+            exit()
 
-    # Find YAML end marker
-    yaml_line = 0
-    yaml_line = find_linenum(file_lines, "---", 1)
-    if not yaml_line:
-        file_lines.insert(0, "---\n---\n")
-        yaml_line = 1
+    # Process each file
+    for file_path in files_to_process:
+        if verbose_mode:
+            print(f"\nProcessing file: {file_path}")
 
-    # Find & move properties
-    line_num = 0
-    if all_inline:
-        find_body_props(file_lines, yaml_line, verbose_mode)
+        file_lines = read_file(file_path)
+        # Skip to next file if current file not found
+        if not file_lines:
+            continue
 
-    if move_props:
-        for i in range(len(move_props) - 1, -1, -1):
-            if line_num := find_prop(
-                file_lines, move_props[i], yaml_line, verbose_mode
-            ):
-                move_prop(file_lines, line_num, move_props[i], yaml_line, verbose_mode)
+        # Find YAML end marker
+        yaml_line = 0
+        yaml_line = find_linenum(file_lines, "---", 1)
+        if not yaml_line:
+            file_lines.insert(0, "---\n---\n")
+            yaml_line = 1
 
-    # Remove old properties
-    if remove_props:
-        for tag in remove_props:
-            if line_num := find_prop(file_lines, tag, yaml_line, verbose_mode):
-                remove_prop(file_lines, line_num, verbose_mode)
+        # Find & move properties
+        line_num = 0
+        if all_inline:
+            find_body_props(file_lines, yaml_line, verbose_mode)
 
-    # Write out changes
-    if args.test:
-        test_write(file_lines)
-    if args.write:
-        write_file(file_name, file_lines, verbose_mode)
+        if move_props:
+            for i in range(len(move_props) - 1, -1, -1):
+                if line_num := find_prop(file_lines, move_props[i], yaml_line, verbose_mode):
+                    move_prop(file_lines, line_num, move_props[i], yaml_line, verbose_mode)
+
+        # Remove old properties
+        if remove_props:
+            for tag in remove_props:
+                if line_num := find_prop(file_lines, tag, yaml_line, verbose_mode):
+                    remove_prop(file_lines, line_num, verbose_mode)
+
+        # Write out changes
+        if args.test:
+            print(f"\nPreview for {file_path}:")
+            test_write(file_lines)
+        if args.write:
+            write_file(file_path, file_lines, verbose_mode)
 
 
 if __name__ == "__main__":
@@ -245,7 +323,9 @@ if __name__ == "__main__":
     )
 
     # Add command-line flags
-    parser.add_argument("-f", "--file", help="Specify a file name", required=True)
+    file_group = parser.add_mutually_exclusive_group(required=True)
+    file_group.add_argument("-f", "--file", help="Specify a file name")
+    file_group.add_argument("-d", "--directory", help="Specify a directory to process all markdown files")
     parser.add_argument(
         "-a", "--all", action="store_true", help="All inline properties"
     )
