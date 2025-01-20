@@ -62,13 +62,12 @@ def read_file(file_path):
         file_path (string): full path to the file including file name and extension
 
     Returns:
-        list: list with each line (separated by \n) as an element
+        list with each line (separated by \n) as an element
     """
     try:
         # Open the file in read mode
         with open(file_path, "r") as file:
-            lines = file.readlines()
-        return lines
+            return file.read().splitlines()
     except FileNotFoundError:
         print(f"Error: The file '{file_path}' was not found.")
     except Exception as e:
