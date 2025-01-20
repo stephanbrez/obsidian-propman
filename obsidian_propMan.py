@@ -187,7 +187,7 @@ def batch_process_props(lines, divider, move_props=None, remove_props=None, all_
               prop_name, value = inner_content.split(":: ", 1)
               if verbose:
                   print(f"Found inline property: {prop_name} on line {index}")
-              new_content = inline_to_yaml(line)
+              new_content = inline_to_yaml(inner_content)
               changes.append(('move', index, new_content))
 
     # Process specific properties to move
