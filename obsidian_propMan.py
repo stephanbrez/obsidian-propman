@@ -212,6 +212,7 @@ def batch_process_props(lines, divider, move_props=None, remove_props=None, all_
                 # Handle bracketed/parenthesized inline properties
                 if match.startswith('[') or match.startswith('('):
                     inner_content = match[1:-1]
+                    content = inline_to_yaml(inner_content)
                     new_line = line.replace(match, '').strip()
                     if new_line:
                         modified_lines[index] = new_line + '\n'
@@ -220,10 +221,10 @@ def batch_process_props(lines, divider, move_props=None, remove_props=None, all_
                 else:
                     # Handle regular inline properties
                     inner_content = match.lstrip('- ').lstrip('> ')
+                    content = clean_prop(inner_content)
                     indices_to_remove.append(index)
 
                 # Process the property content
-                content = inline_to_yaml(inner_content)
                 if check_for_multi_line(content):
                     content = inline_to_multi_line(content)
                 yaml_insertions.append(content)
