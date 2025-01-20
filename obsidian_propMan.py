@@ -15,7 +15,7 @@ Options:
     -a, --all        Move all inline properties to YAML frontmatter
     -mv [PROPS]      Move specific properties to YAML frontmatter
     -rm [PROPS]      Remove specific properties
-    -t, --test      Preview changes without writing to file
+    -p, --preview   Preview changes without writing to file
     -w, --write     Write changes to file
     -v, --verbose   Enable verbose output
 
@@ -261,7 +261,9 @@ def main(args):
     directory = args.directory
     all_inline = args.all
     verbose_mode = args.verbose
-    if args.test:
+    # Set preview mode if write mode is not enabled
+    preview_mode = args.preview or not args.write
+    if preview_mode:
         verbose_mode = True
     move_props = args.move
     remove_props = args.remove
@@ -310,7 +312,7 @@ def main(args):
                     remove_prop(file_lines, line_num, verbose_mode)
 
         # Write out changes
-        if args.test:
+        if preview_mode:
             print(f"\nPreview for {file_path}:")
             test_write(file_lines)
         if args.write:
@@ -332,7 +334,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "-v", "--verbose", action="store_true", help="Enable verbose mode"
     )
-    parser.add_argument("-t", "--test", action="store_true", help="Enable test mode")
+    parser.add_argument("-p", "--preview", action="store_true", help="Enable preview mode")
     parser.add_argument("-w", "--write", action="store_true", help="Enable write mode")
     parser.add_argument(
         "-mv",
