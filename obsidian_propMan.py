@@ -161,12 +161,17 @@ def find_prop(lines, search_str, divider, verbose=False):
     return 0
 
 def batch_process_props(lines, divider, move_props=None, remove_props=None, all_inline=False, verbose=False):
-    """Batch process all property changes before modifying the file.
+    """Process properties in distinct phases to maintain correct ordering.
+
+    Processing order:
+    1. Remove specified properties
+    2. Move inline properties (maintaining document order)
+    3. Move specified properties (maintaining user-specified order) - allows reordering of any property
 
     Args:
         lines (list): File lines to process
         divider (int): YAML frontmatter divider line number
-        move_props (list): Properties to move to frontmatter
+        move_props (list): Properties to move to frontmatter in specified order
         remove_props (list): Properties to remove
         all_inline (bool): Whether to move all inline properties
         verbose (bool): Enable verbose output
@@ -174,88 +179,82 @@ def batch_process_props(lines, divider, move_props=None, remove_props=None, all_
     Returns:
         list: Modified lines with all changes applied
     """
-    # Store all property changes as (operation: str, line_num: int, content: str|None, prop_type: str) tuples
-    changes = []
-    specified_counter = 0  # Counter for specified properties to maintain user order
+    # Create a working copy of lines
+    modified_lines = lines.copy()
 
-    # First collect removals
+    # Phase 1: Remove specified properties
     if remove_props:
+        if verbose:
+            print("\nPhase 1: Removing properties")
+        indices_to_remove = []
         for prop in remove_props:
-            if line_num := find_prop(lines, prop, divider, verbose):
-                changes.append(('remove', line_num, None, 'remove', 0))
+            if line_num := find_prop(modified_lines, prop, divider, verbose):
+                if verbose:
+                    print(f"Marking for removal: {modified_lines[line_num]}")
+                indices_to_remove.append(line_num)
 
-    # Collect inline properties in file order
+        # Remove lines in reverse order to maintain correct indices
+        for index in sorted(indices_to_remove, reverse=True):
+            modified_lines.pop(index)
+
+    # Phase 2: Move inline properties in document order
     if all_inline:
-        for index in range(len(lines)):
-            if res := PATTERNS['DV_PROP'].search(lines[index]):
+        if verbose:
+            print("\nPhase 2: Moving inline properties")
+        indices_to_remove = []
+        yaml_insertions = []
+
+        # First pass: collect all inline properties
+        for index, line in enumerate(modified_lines):
+            if res := PATTERNS['DV_PROP'].search(line):
                 match = res.group(0)
+
+                # Handle bracketed/parenthesized inline properties
                 if match.startswith('[') or match.startswith('('):
                     inner_content = match[1:-1]
-                    inner_content = inline_to_yaml(inner_content)
+                    new_line = line.replace(match, '').strip()
+                    if new_line:
+                        modified_lines[index] = new_line + '\n'
+                    else:
+                        indices_to_remove.append(index)
                 else:
+                    # Handle regular inline properties
                     inner_content = match.lstrip('- ').lstrip('> ')
-                    inner_content = clean_prop(inner_content)
+                    indices_to_remove.append(index)
 
-                prop_name, value = inner_content.split(": ", 1)
+                # Process the property content
+                content = inline_to_yaml(inner_content)
+                if check_for_multi_line(content):
+                    content = inline_to_multi_line(content)
+                yaml_insertions.append(content)
+
                 if verbose:
-                    print(f"Found inline property: {prop_name} on line {index}")
-                if check_for_multi_line(inner_content):
-                    new_content = inline_to_multi_line(inner_content)
-                changes.append(('move', index, inner_content, 'inline', 0))
+                    print(f"Found inline property on line {index}: {content}")
 
-    # Collect specific moves in user-specified order
+        # Remove empty lines in reverse order
+        for index in sorted(indices_to_remove, reverse=True):
+            modified_lines.pop(index)
+
+        # Add collected properties to YAML in original order
+        for content in reversed(yaml_insertions):
+            modified_lines.insert(divider, content)
+
+    # Phase 3: Move specified properties in user-defined order
     if move_props:
+        if verbose:
+            print("\nPhase 3: Moving specified properties")
         for prop in move_props:
-            if line_num := find_prop(lines, prop, divider, verbose):
-                new_content = clean_prop(lines[line_num], prop)
-                if check_for_multi_line(new_content):
-                    new_content = inline_to_multi_line(new_content)
-                changes.append(('move', line_num, new_content, 'specified', specified_counter))
-                specified_counter += 1
+            # Find and remove the property from its current location
+            if line_num := find_prop(modified_lines, prop, divider, verbose):
+                content = clean_prop(modified_lines[line_num], prop)
+                if check_for_multi_line(content):
+                    content = inline_to_multi_line(content)
+                if verbose:
+                    print(f"Moving to YAML: {content}")
+                modified_lines.pop(line_num)
+                modified_lines.insert(divider, content)
 
-    # Sort changes by type priority and appropriate ordering within each type
-    def sort_key(change):
-        """Creates a sort key to order by type priority and appropriate ordering within each type.
-
-        Args:
-            change: Tuple of (operation, line_num, content, prop_type, order)
-                operation: String indicating the type of change ('remove' or 'move')
-                line_num: Integer line number where the property was found
-                content: String content of the property (or None for removals)
-                prop_type: String indicating property type ('remove', 'inline', or 'specified')
-                order: Integer order value for maintaining specified property order
-
-        Returns:
-            Tuple of (type_priority, sort_number) where:
-                type_priority: Integer priority value (0=remove, 1=inline, 2=specified)
-                sort_number: Negative line number for removals/inline, order number for specified
-        """
-        operation, line_num, _, prop_type, order = change
-        # Define type priority (lower number = processed first)
-        type_priority = {
-            'remove': 0,  # Process removals first
-            'inline': 1,  # Then inline properties
-            'specified': 2  # Finally user-specified properties
-        }
-        # Use line number for removals and inline, but order number for specified
-        sort_number = -line_num if prop_type != 'specified' else order
-        return (type_priority[prop_type], sort_number)
-
-    changes.sort(key=sort_key)
-
-    # Process all changes
-    for operation, line_num, content, prop_type, _ in changes:
-        if operation == 'remove':
-            if verbose:
-                print(f"Removing line {line_num}: {lines[line_num]}")
-            lines.pop(line_num)
-        else:  # move
-            if verbose:
-                print(f"Moving line {line_num} to YAML frontmatter")
-            lines.pop(line_num)
-            lines.insert(divider, content)
-
-    return lines
+    return modified_lines
 
 def clean_prop(line, prop_name=None):
     """Cleans and formats a text line  for YAML frontmatter.
