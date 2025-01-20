@@ -172,54 +172,60 @@ def find_prop(lines, search_str, divider, verbose=False):
             return i
     return 0
 
-
-def move_prop(lines, line_index, prop_name, divider, verbose=False):
-    """Move a property from its current location to the YAML frontmatter.
-
-    Args:
-        lines (list): List of text lines
-        line_index (int): Index of line containing property to move
-        prop_name (str): Name of property to move
-        divider (int): Line number of YAML frontmatter divider
-        verbose (bool, optional): Whether to print verbose output. Defaults to False.
-    """
-    if verbose:
-        print(f"Moving: {lines[line_index]}")
-    line = lines.pop(line_index)
-    line = clean_prop(line, prop_name)
-    if check_for_multi_line(line):
-        line = inline_to_multi_line(line)
-    lines.insert(divider, line)
-
-
-def move_inline_prop(lines, line_index, prop_name, divider, verbose=False):
-    """Move an inline property from its current location to the YAML frontmatter.
+def batch_process_props(lines, divider, move_props=None, remove_props=None, all_inline=False, verbose=False):
+    """Batch process all property changes before modifying the file.
 
     Args:
-        lines (list): List of text lines
-        line_index (int): Index of line containing property to move
-        prop_name (str): Name of property to move
-        divider (int): Line number of YAML frontmatter divider
-        verbose (bool, optional): Whether to print verbose output. Defaults to False.
+        lines (list): File lines to process
+        divider (int): YAML frontmatter divider line number
+        move_props (list): Properties to move to frontmatter
+        remove_props (list): Properties to remove
+        all_inline (bool): Whether to move all inline properties
+        verbose (bool): Enable verbose output
+
+    Returns:
+        list: Modified lines with all changes applied
     """
-    if verbose:
-        print(f"Moving: {lines[line_index]}")
-    line = lines.pop(line_index)
-    line = clean_prop(line, prop_name, True)
-    lines.insert(divider, line)
+    # Store changes as (operation, line_index, new_content)
+    # operation: 'move' or 'remove'
+    changes = []
 
+    # Process all inline properties if requested
+    if all_inline:
+        for index, line in enumerate(lines):
+            if res := re.search(r"[a-zA-Z0-9-_[(]+::\s{1}.+", line):
+                prop = res.group().split(":: ")[0]
+                if verbose:
+                    print(f"Found inline property: {prop} on line {index}")
+                new_content = clean_prop(line, prop, True)
+                changes.append(('move', index, new_content))
 
-def remove_prop(lines, line_index, verbose=False):
-    """Remove a property from the file.
+    # Process specific properties to move
+    if move_props:
+        for prop in move_props:
+            if line_num := find_prop(lines, prop, divider, verbose):
+                new_content = clean_prop(lines[line_num], prop)
+                if check_for_multi_line(new_content):
+                    new_content = inline_to_multi_line(new_content)
+                changes.append(('move', line_num, new_content))
 
-    Args:
-        lines (list): List of text lines
-        line_index (int): Index of line containing property to remove
-        verbose (bool, optional): Whether to print verbose output. Defaults to False.
-    """
-    if verbose:
-        print(f"Removing: {lines[line_index]}")
-    lines.pop(line_index)
+    # Process properties to remove
+    if remove_props:
+        for prop in remove_props:
+            if line_num := find_prop(lines, prop, divider, verbose):
+                changes.append(('remove', line_num, None))
+
+    # Apply all changes in reverse order (to maintain correct line numbers)
+    for operation, line_num, content in sorted(changes, key=lambda x: x[1], reverse=True):
+        if operation == 'remove':
+            if verbose:
+                print(f"Removing line {line_num}: {lines[line_num]}")
+            lines.pop(line_num)
+        else:  # move
+            if verbose:
+                print(f"Moving line {line_num} to YAML frontmatter")
+            lines.pop(line_num)
+            lines.insert(divider, content)
 
 
 def clean_prop(line, prop_name, inline=False):
@@ -334,10 +340,6 @@ def inline_to_multi_line(line):
 def main(args):
     """Main function to process Obsidian markdown files and manipulate their properties.
 
-    Processes command line arguments to move or remove properties in markdown files.
-    Can operate on a single file or directory of files. Properties can be moved from
-    inline/body to YAML frontmatter or removed entirely.
-
     Args:
         args: Command line arguments parsed by argparse containing:
             file: Path to single markdown file to process
@@ -391,21 +393,15 @@ def main(args):
             file_lines.insert(0, "---\n---\n")
             yaml_line = 1
 
-        # Find & move properties
-        line_num = 0
-        if all_inline:
-            find_body_props(file_lines, yaml_line, verbose_mode)
-
-        if move_props:
-            for i in range(len(move_props) - 1, -1, -1):
-                if line_num := find_prop(file_lines, move_props[i], yaml_line, verbose_mode):
-                    move_prop(file_lines, line_num, move_props[i], yaml_line, verbose_mode)
-
-        # Remove old properties
-        if remove_props:
-            for tag in remove_props:
-                if line_num := find_prop(file_lines, tag, yaml_line, verbose_mode):
-                    remove_prop(file_lines, line_num, verbose_mode)
+        # Process all property changes in batch
+        file_lines = batch_process_props(
+            file_lines,
+            yaml_line,
+            move_props=args.move,
+            remove_props=args.remove,
+            all_inline=args.all,
+            verbose=verbose_mode
+        )
 
         # Write out changes
         if preview_mode:
