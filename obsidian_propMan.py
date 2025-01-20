@@ -35,7 +35,7 @@ import os
 
 # Pre-compile all regex patterns used in the script
 PATTERNS = {
-    'DV_PROP': re.compile(r'(?:[\[(].+?[\])]|(?:^|\s*[-]|\s*>)\s*[a-zA-Z0-9-_]+::\s.+)'),
+    'DV_PROP': re.compile(r'(?:[\[(][a-zA-Z0-9-_]+::\s.+?[\])]|(?:^|\s*[-]|\s*>)\s*[a-zA-Z0-9-_]+::\s.+)'),
     'MULTI_LINE': re.compile(r",[^\[]+\]\]"),
     'BLOCKREF': re.compile(r"\^[a-zA-Z0-9-]+"),
     'DOUBLE_BRACKETS': re.compile(r"\[\[.*?\]\]"),
