@@ -191,17 +191,17 @@ def batch_process_props(lines, divider, move_props=None, remove_props=None, all_
                 match = res.group(0)
                 if match.startswith('[') or match.startswith('('):
                     inner_content = match[1:-1]
+                    inner_content = inline_to_yaml(inner_content)
                 else:
                     inner_content = match.lstrip('- ').lstrip('> ')
                     inner_content = clean_prop(inner_content)
 
-                prop_name, value = inner_content.split(":: ", 1)
+                prop_name, value = inner_content.split(": ", 1)
                 if verbose:
                     print(f"Found inline property: {prop_name} on line {index}")
-                new_content = inline_to_yaml(inner_content)
-                if check_for_multi_line(new_content):
-                    new_content = inline_to_multi_line(new_content)
-                changes.append(('move', index, new_content, 'inline', 0))
+                if check_for_multi_line(inner_content):
+                    new_content = inline_to_multi_line(inner_content)
+                changes.append(('move', index, inner_content, 'inline', 0))
 
     # Collect specific moves in user-specified order
     if move_props:
