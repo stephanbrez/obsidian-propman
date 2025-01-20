@@ -176,12 +176,13 @@ def batch_process_props(lines, divider, move_props=None, remove_props=None, all_
     """
     # Store all property changes as (operation: str, line_num: int, content: str|None, prop_type: str) tuples
     changes = []
+    specified_counter = 0  # Counter for specified properties to maintain user order
 
     # First collect removals
     if remove_props:
         for prop in remove_props:
             if line_num := find_prop(lines, prop, divider, verbose):
-                changes.append(('remove', line_num, None, 'remove'))
+                changes.append(('remove', line_num, None, 'remove', 0))
 
     # Collect inline properties in file order
     if all_inline:
@@ -199,7 +200,7 @@ def batch_process_props(lines, divider, move_props=None, remove_props=None, all_
                 new_content = inline_to_yaml(inner_content)
                 if check_for_multi_line(new_content):
                     new_content = inline_to_multi_line(new_content)
-                changes.append(('move', index, new_content, 'inline'))
+                changes.append(('move', index, new_content, 'inline', 0))
 
     # Collect specific moves in user-specified order
     if move_props:
@@ -208,41 +209,41 @@ def batch_process_props(lines, divider, move_props=None, remove_props=None, all_
                 new_content = clean_prop(lines[line_num], prop)
                 if check_for_multi_line(new_content):
                     new_content = inline_to_multi_line(new_content)
-                changes.append(('move', line_num, new_content, 'specified'))
+                changes.append(('move', line_num, new_content, 'specified', specified_counter))
+                specified_counter += 1
 
-    # Sort function that returns a tuple used to order property changes
+    # Sort changes by type priority and appropriate ordering within each type
     def sort_key(change):
-        """Creates a sort key to order property changes in the desired sequence.
+        """Creates a sort key to order by type priority and appropriate ordering within each type.
 
         Args:
-            change: Tuple of (operation, line_num, content, prop_type)
+            change: Tuple of (operation, line_num, content, prop_type, order)
                 operation: String indicating the type of change ('remove' or 'move')
                 line_num: Integer line number where the property was found
                 content: String content of the property (or None for removals)
                 prop_type: String indicating property type ('remove', 'inline', or 'specified')
+                order: Integer order value for maintaining specified property order
 
         Returns:
-            Tuple of (type_priority, negative_line_num) where:
+            Tuple of (type_priority, sort_number) where:
                 type_priority: Integer priority value (0=remove, 1=inline, 2=specified)
-                negative_line_num: Negative line number for bottom-to-top processing
+                sort_number: Negative line number for removals/inline, order number for specified
         """
-        operation, line_num, _, prop_type = change
+        operation, line_num, _, prop_type, order = change
         # Define type priority (lower number = processed first)
         type_priority = {
             'remove': 0,  # Process removals first
             'inline': 1,  # Then inline properties
             'specified': 2  # Finally user-specified properties
         }
-        return (type_priority[prop_type], -line_num)
+        # Use line number for removals and inline, but order number for specified
+        sort_number = -line_num if prop_type != 'specified' else order
+        return (type_priority[prop_type], sort_number)
 
     changes.sort(key=sort_key)
 
-    # Collect moves in separate lists to maintain respective orders
-    inline_content = []
-    specified_content = []
-
     # Process all changes
-    for operation, line_num, content, prop_type in changes:
+    for operation, line_num, content, prop_type, _ in changes:
         if operation == 'remove':
             if verbose:
                 print(f"Removing line {line_num}: {lines[line_num]}")
@@ -251,17 +252,7 @@ def batch_process_props(lines, divider, move_props=None, remove_props=None, all_
             if verbose:
                 print(f"Moving line {line_num} to YAML frontmatter")
             lines.pop(line_num)
-            if prop_type == 'inline':
-                inline_content.insert(0, content)
-            else:  # specified
-                specified_content.insert(0, content)
-
-    # Add moved content to YAML frontmatter in correct order
-    # First inline properties in original order, then specified moves in user order
-    for content in inline_content:
-        lines.insert(divider, content)
-    for content in specified_content:
-        lines.insert(divider, content)
+            lines.insert(divider, content)
 
     return lines
 
