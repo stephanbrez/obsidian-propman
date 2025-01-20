@@ -174,49 +174,52 @@ def batch_process_props(lines, divider, move_props=None, remove_props=None, all_
     Returns:
         list: Modified lines with all changes applied
     """
-    # Store changes as (operation, line_index, new_content)
-    # operation: 'move' or 'remove'
+    # Store changes as (operation, line_index, new_content, original_order)
     changes = []
+    order_counter = 0
 
-    # Process all inline properties if requested
+    # First collect all changes without applying them
+    if remove_props:
+        for prop in remove_props:
+            if line_num := find_prop(lines, prop, divider, verbose):
+                changes.append(('remove', line_num, None, order_counter))
+                order_counter += 1
+
     if all_inline:
         for index, line in enumerate(lines):
             if res := PATTERNS['DV_PROP'].search(line):
                 match = res.group(0)
                 if match.startswith('[') or match.startswith('('):
-                    # Handle bracketed property
                     inner_content = match[1:-1]
                 else:
-                    # Handle line-start/after-character property
-                    # Remove leading characters if present
                     inner_content = match.lstrip('- ').lstrip('> ')
 
-                # Split at :: to separate property name and value
                 prop_name, value = inner_content.split(":: ", 1)
                 if verbose:
                     print(f"Found inline property: {prop_name} on line {index}")
                 new_content = inline_to_yaml(inner_content)
                 if check_for_multi_line(new_content):
                     new_content = inline_to_multi_line(new_content)
-                changes.append(('move', index, new_content))
+                changes.append(('move', index, new_content, order_counter))
+                order_counter += 1
 
-    # Process specific properties to move
     if move_props:
         for prop in move_props:
             if line_num := find_prop(lines, prop, divider, verbose):
                 new_content = clean_prop(lines[line_num], prop)
                 if check_for_multi_line(new_content):
                     new_content = inline_to_multi_line(new_content)
-                changes.append(('move', line_num, new_content))
+                changes.append(('move', line_num, new_content, order_counter))
+                order_counter += 1
 
-    # Process properties to remove
-    if remove_props:
-        for prop in remove_props:
-            if line_num := find_prop(lines, prop, divider, verbose):
-                changes.append(('remove', line_num, None))
+    # Sort changes by line number in reverse order (bottom to top)
+    changes.sort(key=lambda x: x[1], reverse=True)
 
-    # Apply all changes in reverse order (to maintain correct line numbers)
-    for operation, line_num, content in sorted(changes, key=lambda x: x[1], reverse=True):
+    # List to store properties that need to be moved to YAML frontmatter, along with their original order
+    move_content = []
+
+    # Process all changes
+    for operation, line_num, content, orig_order in changes:
         if operation == 'remove':
             if verbose:
                 print(f"Removing line {line_num}: {lines[line_num]}")
@@ -225,7 +228,13 @@ def batch_process_props(lines, divider, move_props=None, remove_props=None, all_
             if verbose:
                 print(f"Moving line {line_num} to YAML frontmatter")
             lines.pop(line_num)
-            lines.insert(divider, content)
+            move_content.append((content, orig_order))
+
+    # Sort move_content by original order and insert at divider
+    move_content.sort(key=lambda x: x[1])
+    for content, _ in move_content:
+        lines.insert(divider, content)
+
     return lines
 
 def clean_prop(line, prop_name):
