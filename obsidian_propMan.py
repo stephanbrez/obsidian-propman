@@ -151,8 +151,8 @@ def find_prop(lines, search_str, divider, verbose=False):
         int: Line number where property was found, or 0 if not found
     """
     # Check YAML and body in one pass
-    yaml_prop = format_prop(search_str)
-    body_prop = format_prop(search_str, True)
+    yaml_prop = fix_colon(search_str)
+    body_prop = fix_colon(search_str, True)
 
     for i, line in enumerate(lines):
         if (i < divider and yaml_prop in line) or \
@@ -193,6 +193,7 @@ def batch_process_props(lines, divider, move_props=None, remove_props=None, all_
                     inner_content = match[1:-1]
                 else:
                     inner_content = match.lstrip('- ').lstrip('> ')
+                    inner_content = clean_prop(inner_content)
 
                 prop_name, value = inner_content.split(":: ", 1)
                 if verbose:
@@ -256,10 +257,11 @@ def batch_process_props(lines, divider, move_props=None, remove_props=None, all_
 
     return lines
 
-def clean_prop(line, prop_name):
+def clean_prop(line, prop_name=None):
     """Cleans and formats a text line  for YAML frontmatter.
     Sets everything from "::" to the end of the line as the property value.
-    Removes blockrefs and quotes double brackets.
+    Removes everything before the property name and all blockrefs
+    Adds quotes to double brackets to maintain wiki links.
 
     Args:
         line: String containing the full property line to clean
@@ -270,7 +272,10 @@ def clean_prop(line, prop_name):
         String containing the cleaned and reformatted property line
     """
     # Find property name and end positions
-    start = line.find(prop_name)
+    if prop_name:
+      start = line.find(prop_name)
+    else:
+      start = 0
     end = line.rfind("^")
     if end < 0:
         end = len(line)
@@ -286,7 +291,7 @@ def clean_prop(line, prop_name):
 def inline_to_yaml(line):
   return f"{line[0].lower()}{line[1:].replace('::', ':').replace('[[', '"[[').replace(']]', ']]"')}\n"
 
-def format_prop(prop_name, inline=False):
+def fix_colon(prop_name, inline=False):
     """Formats a property name with appropriate colon syntax.
     Single colon for YAML frontmatter, double colon for inline properties.
 
