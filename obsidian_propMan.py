@@ -104,6 +104,13 @@ def test_write(lines):
     """
     print(lines)
 
+def export_debug_state(lines, filename_suffix):
+    """Export current state to a debug file"""
+    debug_filename = f"debug_state_{filename_suffix}.txt"
+    with open(debug_filename, "w") as f:
+        for i, line in enumerate(lines):
+            f.write(f"{i}: {line}\n")
+    return debug_filename
 
 def find_linenum(lines, target_string, start=0, stop=0, verbose=False):
     """Find the line number containing a target string within specified line range.
@@ -195,17 +202,12 @@ def batch_process_props(lines, divider, move_props=None, remove_props=None, all_
     if remove_props:
         if verbose:
             print("\nPhase 1: Removing properties")
-        indices_to_remove = []
         for prop in remove_props:
             if line_num := find_prop(modified_lines, prop, divider, verbose):
                 if verbose:
                     print(f"Marking for removal: {modified_lines[line_num]}")
-                indices_to_remove.append(line_num)
-
-        # Remove lines in reverse order to maintain correct indices
-        for index in sorted(indices_to_remove, reverse=True):
-            modified_lines.pop(index)
-            lines_removed += 1
+                modified_lines.pop(index)
+                lines_removed += 1
 
     # Phase 2: Move inline properties in document order
     if all_inline:
@@ -282,6 +284,8 @@ def batch_process_props(lines, divider, move_props=None, remove_props=None, all_
         print(f"Actual final count: {final_count}")
         if expected_count != final_count:
               print(f"WARNING: Line count mismatch! Expected {expected_count} but got {final_count}")
+              debug_file = export_debug_state(modified_lines, "mismatch")
+              print(f"\nDebug state exported to: {debug_file}")
 
     return modified_lines
 
