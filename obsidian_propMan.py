@@ -17,6 +17,7 @@ Options:
     -d, --directory  Specify directory containing markdown files to process
     -a, --all        Move all inline properties to YAML frontmatter
     -mv [PROPS]      Move specific properties to YAML frontmatter
+    -i, --inline     Move specified properties from markdown body to YAML frontmatter
     -rm [PROPS]      Remove specific properties
     -p, --preview   Preview changes without writing to file
     -w, --write     Write changes to file
@@ -162,33 +163,46 @@ def find_linenum(lines, target_string, start=0, stop=0, verbose=False):
             print(f"The string '{target_string}' was not found in the file.")
         return None
 
-def find_prop(lines, search_str, divider, verbose=False):
-    """Find a specific property in either YAML frontmatter or page body.
+def find_prop(lines, search_str, divider, scope="all", verbose=False):
+    """Find a specific property in either YAML frontmatter, page body, or both.
 
     Args:
         lines (list): List of text lines to search through
         search_str (str): Property name to search for
         divider (int): Line number of YAML frontmatter divider
+        scope (str, optional): Scope of search. One of "yaml", "body", or "all". Defaults to "all".
         verbose (bool, optional): Whether to print verbose output. Defaults to False.
 
     Returns:
         int: Line number where property was found, or 0 if not found
     """
-    # Check YAML and body in one pass by using a colon for demarkation
     yaml_prop = fix_colon(search_str)
     body_prop = fix_colon(search_str, True)
 
     if verbose:
-        print(f"Searching for {search_str} in YAML and body")
+        print(f"Searching for {search_str} in {scope}")
 
-    for i, line in enumerate(lines):
-        if (i < divider and yaml_prop in line) or (i >= divider and body_prop in line):
-            if verbose:
-                print(f"Found {search_str} on line {i}: {line}")
-            return i
+    if scope == "yaml":
+        for i, line in enumerate(lines[:divider]):
+            if yaml_prop in line:
+                if verbose:
+                    print(f"Found {search_str} on line {i}: {line}")
+                return i
+    elif scope == "body":
+        for i, line in enumerate(lines[divider:]):
+            if body_prop in line:
+                if verbose:
+                    print(f"Found {search_str} on line {i+divider}: {line}")
+                return i + divider
+    else:  # scope == "all"
+        for i, line in enumerate(lines):
+            if (i < divider and yaml_prop in line) or (i >= divider and body_prop in line):
+                if verbose:
+                    print(f"Found {search_str} on line {i}: {line}")
+                return i
     return 0
 
-def batch_process_props(lines, divider, move_props=None, remove_props=None, all_inline=False, verbose=False, markdown_file=None):
+def batch_process_props(lines, divider, move_props=None, inline_props=None, remove_props=None, all_inline=False, verbose=False, markdown_file=None):
     """Process properties in distinct phases to maintain correct ordering.
 
     Processing order:
@@ -200,6 +214,7 @@ def batch_process_props(lines, divider, move_props=None, remove_props=None, all_
         lines (list): File lines to process
         divider (int): YAML frontmatter divider line number
         move_props (list): Properties to move to frontmatter in specified order
+        inline_props (list): Properties to move from markdown body to YAML frontmatter
         remove_props (list): Properties to remove
         all_inline (bool): Whether to move all inline properties
         verbose (bool): Enable verbose output
@@ -227,7 +242,7 @@ def batch_process_props(lines, divider, move_props=None, remove_props=None, all_
         if verbose:
             print("\nRemoving properties")
         for prop in remove_props:
-            if line_num := find_prop(modified_lines, prop, divider,  verbose):
+            if line_num := find_prop(modified_lines, prop, divider, "all", verbose):
                 if verbose:
                     print(f"Marking for removal: {modified_lines[line_num]}")
                 modified_lines.pop(line_num)
@@ -280,12 +295,24 @@ def batch_process_props(lines, divider, move_props=None, remove_props=None, all_
             divider += 1 # Increment divider after insertion
 
     # Phase 3: Move specified properties in user-defined order
-    if move_props:
+    if move_props or inline_props:
         if verbose:
             print("\nMoving specified properties")
-        for prop in move_props:
-            # Find and remove the property from its current location
-            if line_num := find_prop(modified_lines, prop, divider, verbose):
+        # Handle regular moves (all scope) and inline moves (body scope)
+        # Inline moves happen first so that the regular moves don't interfere
+        for prop in (inline_props or []):
+            if line_num := find_prop(modified_lines, prop, divider, "body", verbose):
+                content = clean_prop(modified_lines[line_num], prop)
+                if check_for_multi_line(content):
+                    content = inline_to_multi_line(content)
+                modified_lines.pop(line_num)
+                if verbose: 
+                    print(f"Moved property {content} from line {line_num} to YAML frontmatter at line {divider}")
+                modified_lines.insert(divider, content)
+                divider += 1 # Increment divider after insertion
+                
+        for prop in (move_props or []):
+            if line_num := find_prop(modified_lines, prop, divider, "all", verbose):
                 content = clean_prop(modified_lines[line_num], prop)
                 if check_for_multi_line(content):
                     content = inline_to_multi_line(content)
@@ -300,7 +327,7 @@ def batch_process_props(lines, divider, move_props=None, remove_props=None, all_
                         print(f"Moved property {content} from YAML frontmatter at line {line_num} to line {divider}")
                     modified_lines.insert(divider - 1, content)
                     
-
+    
     # Final line count and validation
     if verbose:
         final_count = len(modified_lines)
@@ -444,6 +471,7 @@ def main(args):
             preview: Boolean to preview changes without writing
             write: Boolean to write changes to files
             move: List of property names to move to frontmatter
+            inline: List of property names to move from markdown body to YAML frontmatter
             remove: List of property names to remove
 
     Returns:
@@ -459,6 +487,7 @@ def main(args):
     if preview_mode:
         verbose_mode = True
     move_props = args.move
+    inline_props = args.inline
     remove_props = args.remove
 
     # Get list of files to process
@@ -496,6 +525,7 @@ def main(args):
             file_lines,
             yaml_line,
             move_props=args.move,
+            inline_props=args.inline,
             remove_props=args.remove,
             all_inline=args.all,
             verbose=verbose_mode,
@@ -532,6 +562,12 @@ if __name__ == "__main__":
         "--move",
         nargs="+",
         help="Properties to move separated by spaces.\nThese will be "
+        "placed at the end of existing properties in order listed",
+    )
+    parser.add_argument(
+        "-i", "--inline",
+        nargs="+",
+        help="Properties to move from markdown body to YAML frontmatter\nThese will be "
         "placed at the end of existing properties in order listed",
     )
     parser.add_argument(
