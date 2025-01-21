@@ -13,8 +13,8 @@ Options:
     -f, --file       Specify input file path
     -d, --directory  Specify directory containing markdown files to process
     -a, --all        Move all inline properties to YAML frontmatter
-    -mv [PROPS]      Move specific properties to YAML frontmatter
-    -rm [PROPS]      Remove specific properties
+    -mv [PROPS]      Move specific properties to YAML frontmatter - Case INsensitive
+    -rm [PROPS]      Remove specific properties - Case sensitive
     -p, --preview   Preview changes without writing to file
     -w, --write     Write changes to file
     -v, --verbose   Enable verbose output
@@ -346,7 +346,7 @@ def clean_prop(line, prop_name=None):
     return line
 
 def inline_to_yaml(line):
-  return f"{line[0].lower()}{line[1:].replace('::', ':').replace('[[', '"[[').replace(']]', ']]"')}\n"
+    return f"{line[0].lower()}{line[1:].replace('::', ':').replace('[[', '"[[').replace(']]', ']]"')}\n"
 
 def fix_colon(prop_name, inline=False):
     """Formats a property name with appropriate colon syntax.
@@ -391,9 +391,9 @@ def inline_to_multi_line(line):
     Returns:
         A string containing the property in multi-line YAML list format:
             property_name:
-              - value1
-              - value2
-              - value3
+                - value1
+                - value2
+                - value3
 
     """
     # Use regex to split property name and value
