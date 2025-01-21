@@ -232,7 +232,7 @@ def batch_process_props(lines, divider, move_props=None, remove_props=None, all_
                     print(f"Marking for removal: {modified_lines[line_num]}")
                 modified_lines.pop(line_num)
                 lines_removed += 1
-        divider = find_linenum(modified_lines, "---", 1, divider) # Update divider_
+        divider = find_linenum(modified_lines, "---", 1, divider + 1) # Update divider_
 
     # Phase 2: Move inline properties in document order
     if all_inline:
