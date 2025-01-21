@@ -230,6 +230,7 @@ def batch_process_props(lines, divider, move_props=None, remove_props=None, all_
                     print(f"Marking for removal: {modified_lines[line_num]}")
                 modified_lines.pop(line_num)
                 lines_removed += 1
+        divider = find_linenum(modified_lines, "---", 1, divider) # Update divider_
 
     # Phase 2: Move inline properties in document order
     if all_inline:
@@ -286,13 +287,17 @@ def batch_process_props(lines, divider, move_props=None, remove_props=None, all_
                 content = clean_prop(modified_lines[line_num], prop)
                 if check_for_multi_line(content):
                     content = inline_to_multi_line(content)
-                if verbose:
-                    print(f"Moving to YAML: {content}")
                 modified_lines.pop(line_num)
-                modified_lines.insert(divider, content)
                 if line_num > divider:
-                    print(f"Moved property {prop} from line {line_num} to YAML frontmatter")
+                    if verbose: 
+                        print(f"Moved property {content} from line {line_num} to YAML frontmatter at line {divider}")
+                    modified_lines.insert(divider, content)
                     divider += 1 # Increment divider after insertion
+                else:
+                    if verbose: 
+                        print(f"Moved property {content} from YAML frontmatter at line {line_num} to line {divider}")
+                    modified_lines.insert(divider - 1, content)
+                    
 
     # Final line count and validation
     if verbose:
