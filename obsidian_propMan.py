@@ -3,6 +3,9 @@
 This script allows you to move inline/body properties into the YAML frontmatter
 or delete properties from a note. It can operate on a single file or an entire directory.
 
+For safety, all operations are CASE SENSITIVE. This is to prevent accidental matching of 
+text that isn't part of a property in inline properties.
+
 Usage example:
     Single file:
         python obsidian_propMan.py -f path/to/file.md [options]
@@ -13,8 +16,8 @@ Options:
     -f, --file       Specify input file path
     -d, --directory  Specify directory containing markdown files to process
     -a, --all        Move all inline properties to YAML frontmatter
-    -mv [PROPS]      Move specific properties to YAML frontmatter - Case INsensitive
-    -rm [PROPS]      Remove specific properties - Case sensitive
+    -mv [PROPS]      Move specific properties to YAML frontmatter
+    -rm [PROPS]      Remove specific properties
     -p, --preview   Preview changes without writing to file
     -w, --write     Write changes to file
     -v, --verbose   Enable verbose output
@@ -169,15 +172,15 @@ def find_prop(lines, search_str, divider, verbose=False):
     Returns:
         int: Line number where property was found, or 0 if not found
     """
-    # Check YAML and body in one pass
-    yaml_prop = fix_colon(search_str).lower()
-    body_prop = fix_colon(search_str, True).lower()
+    # Check YAML and body in one pass by using a colon for demarkation
+    yaml_prop = fix_colon(search_str)
+    body_prop = fix_colon(search_str, True)
 
     if verbose:
         print(f"Searching for {search_str} in YAML and body")
 
     for i, line in enumerate(lines):
-        if (i < divider and yaml_prop in line.lower()) or (i >= divider and body_prop in line.lower()):
+        if (i < divider and yaml_prop in line) or (i >= divider and body_prop in line):
             if verbose:
                 print(f"Found {search_str} on line {i}: {line}")
             return i
@@ -222,7 +225,7 @@ def batch_process_props(lines, divider, move_props=None, remove_props=None, all_
         if verbose:
             print("\nRemoving properties")
         for prop in remove_props:
-            if line_num := find_prop(modified_lines, prop, divider, verbose):
+            if line_num := find_prop(modified_lines, prop, divider,  verbose):
                 if verbose:
                     print(f"Marking for removal: {modified_lines[line_num]}")
                 modified_lines.pop(line_num)
@@ -322,18 +325,16 @@ def clean_prop(line, prop_name=None):
     Returns:
         String containing the cleaned and reformatted property line
     """
-    match_line = line.lower()   
     # Find property name and end positions
     if prop_name:
-        prop_lower = prop_name.lower()
-        start = match_line.find(prop_lower)
+        start = line.find(prop_name)
         if start == -1:
             print(f"Warning: Could not find '{prop_name}' in line: {line}")
             return line
     else:
         start = 0
         
-    end = match_line.rfind("^")
+    end = line.rfind("^")
     if end < 0:
         end = len(line)
 
@@ -346,7 +347,20 @@ def clean_prop(line, prop_name=None):
     return line
 
 def inline_to_yaml(line):
-    return f"{line[0].lower()}{line[1:].replace('::', ':').replace('[[', '"[[').replace(']]', ']]"')}\n"
+    """Formats a string as a YAML frontmatter property value
+
+    Single string operation for formatting a string for YAML frontmatter
+    Replaces double colons with single colons for the property name
+    Adds quotes to double brackets to maintain wiki links
+
+    Args:
+        line: String containing the full property line to convert
+
+    Returns:
+        String containing the formatted YAML frontmatter property line
+    """
+
+    return f"{line.replace('::', ':').replace('[[', '"[[').replace(']]', ']]"')}\n"
 
 def fix_colon(prop_name, inline=False):
     """Formats a property name with appropriate colon syntax.
