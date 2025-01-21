@@ -99,8 +99,10 @@ def write_file(file_path, lines, verbose=False):
     if verbose:
         print(f"Writing to {file_path}...")
 
+    # Strip any existing newlines and join with new ones
+    cleaned_lines = [line.rstrip('\n') for line in lines]
     with open(file_path, "w") as file:
-        file.writelines(lines)
+        file.write('\n'.join(cleaned_lines) + '\n')
 
 
 def test_write(lines):
