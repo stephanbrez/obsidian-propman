@@ -16,12 +16,15 @@ Options:
     -f, --file       Specify input file path
     -d, --directory  Specify directory containing markdown files to process
     -a, --all        Move all inline properties to YAML frontmatter
-    -mv [PROPS]      Move specific properties to YAML frontmatter
-    -i, --inline     Move specified properties from markdown body to YAML frontmatter
-    -rm [PROPS]      Remove specific properties
+    -mv, --move [PROPS]      Move specific properties to YAML frontmatter in the order specified.
+    -i, --inline [PROPS]     Move specified properties from markdown body to YAML frontmatter in the order specified.
+    -rm, --remove [PROPS]    Remove specific properties.
     -p, --preview   Preview changes without writing to file
     -w, --write     Write changes to file
     -v, --verbose   Enable verbose output
+    
+Note: 
+    The move function also supports reordering of properties by specifying the properties in the desired order.
 
 Examples:
     # Move all inline properties in a file:
