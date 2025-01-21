@@ -149,7 +149,10 @@ def find_linenum(lines, target_string, start=0, stop=0, verbose=False):
     index_of_target = -1
     if not stop:
         stop = len(lines)
-    # print(f"Searching from line {start} to {stop}")
+    if verbose: 
+        print(f"Searching from line {start} to {stop}")
+    if start == stop and len(lines) == 1:
+        return None
     if start == stop:
         stop += 1
     for i in range(start, stop):
@@ -517,7 +520,7 @@ def main(args):
 
         # Find YAML end marker
         yaml_line = 0
-        yaml_line = find_linenum(file_lines, "---", 1,)
+        yaml_line = find_linenum(file_lines, "---", 1, verbose=verbose_mode)
         if not yaml_line:
             if verbose_mode:
                 print("No YAML found, inserting YAML frontmatter.")
